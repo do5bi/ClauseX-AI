@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Literal
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -22,6 +23,20 @@ Clause 5. The landlord may enter the premises after prior written notice for nec
 Clause 6. Normal wear and tear is excluded from tenant repair costs.
 """
 
+ARABIC_SAMPLE = """عقد إيجار سكن طلابي
+
+١. يستأجر الطالب غرفة مفروشة خلال العام الدراسي. يبلغ الإيجار الشهري ١٬٠٠٠ رينغيت ماليزي، ويُدفع في اليوم الأول من كل شهر.
+
+٢. يدفع الطالب مبلغ التأمين وقدره ٢٬٠٠٠ رينغيت. يردّ المؤجر المبلغ بعد تسلّم الغرفة، ويبيّن كتابةً أي خصم مقابل ضرر يتجاوز الاستهلاك المعتاد.
+
+٣. يجوز للطالب إنهاء العقد قبل انتهاء مدته بإرسال إشعار خطي إلى المؤجر. مدة الإشعار ستون يومًا، ويلتزم الطالب بدفع الإيجار خلالها.
+
+٤. إذا مضت سبعة أيام على موعد السداد، تُضاف رسوم التأخير وقدرها ١٠٠ رينغيت عن الدفعة المتأخرة.
+
+٥. يجوز للمؤجر دخول الغرفة لإجراء إصلاح ضروري بعد الاتفاق مع الطالب على الموعد وإخطاره كتابةً قبل الزيارة بيوم واحد على الأقل.
+
+٦. يتحمل المؤجر تكاليف الصيانة الدورية وإصلاح الأعطال الناتجة عن الاستهلاك المعتاد. وعلى الطالب الإبلاغ عن الأعطال فور ملاحظتها وتحمل تكلفة إصلاح ما يتلفه بسوء الاستخدام."""
+
 app = FastAPI(title="ClauseX Starter API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -39,8 +54,9 @@ def health():
     return {"status": "ok", "mode": "local_prototype"}
 
 @app.get("/api/sample")
-def get_sample():
-    return {"text": SAMPLE, **analyze_pages([{"page": 1, "text": SAMPLE}])}
+def get_sample(lang: Literal["en", "ar"] = "en"):
+    text = ARABIC_SAMPLE if lang == "ar" else SAMPLE
+    return {"text": text, **analyze_pages([{"page": 1, "text": text}])}
 
 @app.post("/api/analyze-text")
 def analyze_text(req: TextRequest):
