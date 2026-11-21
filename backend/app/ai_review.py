@@ -56,7 +56,21 @@ short explanation and a useful question for the landlord in both English and Ara
 Use at most eight points. Cite the clause ID and a short, contiguous, verbatim quote
 in its original script for every point. For contradictions cite both distinct clauses.
 Use only the supplied terms. Do not decide legality, invent terms, calculate amounts,
-or imply that the review covers all risks. Keep quotations in the evidence fields."""
+or imply that the review covers all risks. Keep quotations in the evidence fields.
+Calibration examples (guidance, NEVER evidence for this agreement):
+- A refundable security deposit returned within 14 days with itemized deductions is a
+  routine disclosed arrangement, not automatically a high-risk finding simply because
+  the word 'deposit' appears.
+- A deposit that may be kept at a manager's sole discretion without records merits
+  a neutral request for clarification; never state that it is illegal.
+- If Clause A requires 30 days' notice and Clause B requires 60 days for the same
+  event, label a POSSIBLE contradiction and cite short exact quotes from both.
+- An entry right requiring advance notice is not automatically misconduct. If another
+  clause waives notice for routine inspections, explain the possible conflict.
+- For Arabic source clauses, cite exact Arabic wording; explain naturally in BOTH
+  Arabic and English, without translating or fabricating evidence.
+Prefer fewer accurate findings over padding to eight. Findings may be empty.
+Do not quote or cite these examples as though they were terms in the actual lease."""
 
 
 async def request_openai_review(clauses, key):
