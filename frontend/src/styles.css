@@ -4,3 +4,12 @@
 .dropzone.selected-file{cursor:default}.evidence mark{background:#e5e1ff;color:inherit;border-radius:2px}.sample-doc[lang=ar]{font-family:inherit}
 
 .ai-consent{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.6;margin-top:14px;color:#53617b}.ai-consent input{margin-top:4px;accent-color:#6157de}.evidence p,.evidence>b{font-size:12px;line-height:1.7}
+
+
+/* Bilingual example library: compact, accessible selector beside upload controls. */
+.sample-picker{display:flex;flex-direction:column;gap:8px;margin-top:16px;padding:13px;background:#fafbff;border:1px solid #e5e9f4;border-radius:11px;min-width:0}
+.sample-picker label{font-size:11px;font-weight:800;color:#33415f}
+.sample-picker select{width:100%;min-width:0;border:1px solid #d7ddef;background:#fff;color:#253755;border-radius:9px;padding:10px 8px;font-size:11px;line-height:1.5}
+.sample-picker select:focus-visible{outline:2px solid #6157de;outline-offset:2px}
+.sample-picker small{font-size:10px;color:#717f97;line-height:1.65;overflow-wrap:anywhere}
+[dir=rtl] .sample-picker select{font-family:'Noto Sans Arabic',sans-serif}
