@@ -131,3 +131,39 @@ def test_ollama_restores_source_glyphs_and_blocks_external_consent(monkeypatch):
     assert result["analysis_method"] == "ollama_chat"
     assert result["findings"][0]["quote"] == original_quote
     assert calls[0][0]["text"].startswith("مبلغ التأمين")
+
+
+def test_ollama_sample_review_retains_second_page_citation(monkeypatch):
+    from app.analysis import analyze_pages
+    from app.sample_agreements import sample_pages
+
+    pages = sample_pages('deposit_dispute', 'ar')
+    clauses = analyze_pages(pages, full_text=True)['clauses']
+    cited = next(c for c in clauses if 'غرامة تأخير' in c['text'])
+    assert cited['page'] == 2
+    quote = 'غرامة تأخير'
+    calls = []
+
+    async def fake_chat(payload):
+        calls.append(json.loads(payload))
+        return ai_review.ContractReview(findings=[{
+            'category': 'fees',
+            'explanation': {'en': 'Ask how the daily charge is capped.',
+                            'ar': 'اسأل عن الحد الأقصى للغرامة اليومية.'},
+            'landlord_question': {'en': 'Is there a cap on the late fee?',
+                                  'ar': 'هل يوجد سقف لغرامة التأخير؟'},
+            'evidence': [{'clause_id': cited['id'], 'quote': quote}],
+        }])
+
+    monkeypatch.setenv('AI_PROVIDER', 'ollama')
+    monkeypatch.setattr(ai_review, 'request_ollama_review', fake_chat)
+    response = client.post('/api/analyze-sample?lang=ar&sample_id=deposit_dispute',
+                           headers={'X-ClauseX-AI-Consent': 'run-local'})
+    assert response.status_code == 200
+    result = response.json()
+    assert result['analysis_method'] == 'ollama_chat'
+    finding, = result['findings']
+    assert finding['page'] == 2
+    assert finding['quote'] == quote
+    assert finding['evidence'][0]['clause_id'] == cited['id']
+    assert calls[0][len(clauses)-1]['page'] == 2
