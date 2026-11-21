@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Calculator, Check, ChevronRight, FileSearch, 
 
 type Provider='ollama'|'openai';
 type Language='en'|'ar';
+type SampleOption={id:string;title:string;description:string};
 type Clause={id:string;page:number;text:string};
 type Bilingual={en:string;ar:string};
 type Evidence={clause_id:string;page:number;quote:string};
@@ -15,6 +16,7 @@ const translations={
   sub:'Review your student rental agreement, find clauses worth a closer look, and estimate possible costs.',
   analyze:'Review your agreement',
   demo:'Try sample agreement',
+  samplePick:'Choose a sample agreement', sampleNote:'Fictional cases with detailed terms for testing the review.',
   upload:'Drop your lease PDF here, or browse',
   remove:'Remove file',
   consent:'I agree to send the extracted agreement text to OpenAI for this review.',
@@ -82,6 +84,7 @@ const translations={
   sub:'راجع عقد إيجار سكنك الطلابي، وتعرّف على البنود التي تستحق انتباهك، وقدّر التكاليف المحتملة.',
   analyze:'راجع عقد الإيجار',
   demo:'جرّب عقدًا نموذجيًا',
+  samplePick:'اختر نموذج عقد الإيجار', sampleNote:'عقود افتراضية مفصلة لاختبار المراجعة وليست نماذج قانونية للاستخدام.',
   upload:'اسحب عقد PDF هنا أو اختر ملفًا',
   remove:'حذف الملف',
   consent:'أوافق على إرسال نص العقد المستخرج إلى OpenAI لهذه المراجعة.',
@@ -198,6 +201,16 @@ function App(){
 
  const request=useRef<AbortController|null>(null);
  const [sampleOpen,setSampleOpen]=useState(false);
+ const [sampleId,setSampleId]=useState('shared_house');
+ const [samples,setSamples]=useState<SampleOption[]>([]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  fetch(`${API}/api/samples?lang=${lang}`,{signal:controller.signal})
+   .then(response=>response.ok?response.json():null)
+   .then(data=>{if(!controller.signal.aborted) setSamples(data?.samples||[]);})
+   .catch(()=>{if(!controller.signal.aborted) setSamples([]);});
+  return ()=>controller.abort();
+ },[lang]);
  useEffect(()=>()=>request.current?.abort(),[]);
 
  function clearDocument(){
@@ -227,7 +240,8 @@ function App(){
   setMonths(2);
  }
 
- async function loadSample(language:Language, openReview=true){
+ async function loadSample(language:Language, openReview=true, selectedId=sampleId){
+  setSampleId(selectedId);
   clearDocument();
   setSampleOpen(true);
   if(openReview) setView('review');
@@ -235,7 +249,7 @@ function App(){
   request.current=controller;
   setBusy(true);
   try {
-   const response=await fetch(`${API}/api/sample?lang=${language}`,{signal:controller.signal});
+   const response=await fetch(`${API}/api/sample?lang=${language}&sample_id=${encodeURIComponent(selectedId)}`,{signal:controller.signal});
    if(!response.ok) throw new Error();
    const data=await response.json();
    if(controller.signal.aborted) return;
@@ -252,7 +266,7 @@ function App(){
  function switchLanguage(){
   const next=lang==='en'?'ar':'en';
   setLang(next);
-  if(sampleOpen) void loadSample(next,false);
+  if(sampleOpen) void loadSample(next,false,sampleId);
  }
 
  async function analyze(){
@@ -266,17 +280,23 @@ function App(){
    if(useOllama) headers.set('X-ClauseX-AI-Consent','run-local');
    else if(provider==='openai'&&consent) headers.set('X-ClauseX-AI-Consent','send-to-openai');
    setConsent(false);
-   let body:FormData|string;
+   let body:FormData|string|undefined;
+   let endpoint:string;
    if(file){
     const form=new FormData();
     form.append('file',file);
     body=form;
+    endpoint='analyze-file';
+   } else if(sampleOpen){
+    // Review the selected sample from its authoritative pages, preserving citations.
+    endpoint='analyze-sample';
    } else {
     headers.set('Content-Type','application/json');
     body=JSON.stringify({text:sampleText});
+    endpoint='analyze-text';
    }
-   const endpoint=file?'analyze-file':'analyze-text';
-   const response=await fetch(`${API}/api/${endpoint}?lang=${lang}`,{
+   const query=`lang=${lang}`+(sampleOpen?`&sample_id=${encodeURIComponent(sampleId)}`:'');
+   const response=await fetch(`${API}/api/${endpoint}?${query}`,{
     method:'POST',body,headers,signal:controller.signal
    });
    const data=await response.json();
@@ -309,6 +329,15 @@ function App(){
   {useOllama&&(file||sampleText)&&<p className="ai-consent">{t.ollamaPrivacy}</p>}
   {provider==='openai'&&(file||sampleText)&&<label className="ai-consent"><input type="checkbox" checked={consent} disabled={busy}
    onChange={e=>setConsent(e.target.checked)}/><span>{t.consent}</span></label>}
+  {!file&&<div className="sample-picker">
+    <label htmlFor="clausex-sample-select">{t.samplePick}</label>
+    <select id="clausex-sample-select" value={sampleId} disabled={busy||samples.length===0}
+     onChange={e=>{const next=e.target.value;setSampleId(next);if(sampleOpen)void loadSample(lang,false,next);}}>
+     {samples.length===0?<option value={sampleId}>{t.demo}</option>:
+      samples.map(option=><option key={option.id} value={option.id}>{option.title}</option>)}
+    </select>
+    <small>{samples.find(option=>option.id===sampleId)?.description||t.sampleNote}</small>
+   </div>}
   <div className="panel-buttons"><button className="primary small" onClick={analyze} disabled={busy||(!file&&!(sampleText&&(useOllama||consent)))}>{busy?t.working:useOllama?t.localRun:consent?t.aiRun:t.run}<ArrowRight size={16}/></button><button className="outline small" onClick={()=>loadSample(lang)} disabled={busy}>{t.demo}</button></div>{error&&<div role="alert" className="error"><Info size={16}/>{t[error]}</div>}<div className="privacy-tip"><Info size={17}/><span role="status">{result?.fallback_reason?t[result.fallback_reason]:localAiResult?t.ollamaMethod:aiResult?t.aiMethod:`${t.localMethod}. ${t.status}`}</span></div></aside><section className="document-panel"><div className="panel-heading"><h2><FileText size={19}/>{t.original}</h2><span>{result?`${result.pages_processed} ${t.page}`:'PDF'}</span></div>{fileUrl?<iframe title={t.uploaded} src={fileUrl}/>:sampleText?<div className="sample-doc" lang={lang} dir={lang==='ar'?'rtl':'ltr'}>{sampleText}</div>:<div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}</section><aside className="insights-panel"><div className="panel-heading"><h2><ShieldAlert size={19}/>{t.findings}</h2><span className="count">{result?.findings.length||0}</span></div>{result?<>{result.findings.length? <div className="finding-list">{result.findings.map(f=><button key={f.id} className={'finding '+(f.id===chosen?.id?'selected':'')} onClick={()=>setActive(f.id)}><span className={'finding-tag '+f.level}>{f.level==='high'?'!':'•'}</span><div><b>{categoryTitles[f.category]?.[lang]||f.category}</b><small>{t.page} {f.page} · {f.matched_phrase}</small></div><ChevronRight size={16}/></button>)}</div>:<div className="empty-finding">{aiResult?t.aiEmpty:t.none}</div>}{chosen&&<div className="evidence"><span className="evidence-heading"><Check size={15}/>{t.source}</span>{aiResult && chosen.evidence ? <>
    {chosen.evidence.map((source,i)=><div key={i}><blockquote dir="auto">{source.quote}</blockquote><small>{t.page} {source.page} · {source.clause_id}</small></div>)}
    <p>{chosen.explanations?.[lang]}</p><b>{t.question}</b><p>{chosen.question?.[lang]}</p>
