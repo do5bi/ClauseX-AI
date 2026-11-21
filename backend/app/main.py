@@ -1,10 +1,11 @@
 from io import BytesIO
 from typing import Literal
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import pymupdf
 from .analysis import analyze_pages
+from .ai_review import get_provider, review_pages
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PAGES = 25
@@ -43,7 +44,7 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=False,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-ClauseX-AI-Consent"],
 )
 
 class TextRequest(BaseModel):
@@ -53,17 +54,23 @@ class TextRequest(BaseModel):
 def health():
     return {"status": "ok", "mode": "local_prototype"}
 
+@app.get("/api/review-config")
+def review_config():
+    return {"provider": get_provider()}
+
 @app.get("/api/sample")
 def get_sample(lang: Literal["en", "ar"] = "en"):
     text = ARABIC_SAMPLE if lang == "ar" else SAMPLE
     return {"text": text, **analyze_pages([{"page": 1, "text": text}])}
 
 @app.post("/api/analyze-text")
-def analyze_text(req: TextRequest):
-    return analyze_pages([{"page": 1, "text": req.text}])
+async def analyze_text(req: TextRequest, lang: Literal["en", "ar"] = "en",
+                       x_clausex_ai_consent: str = Header(default="")):
+    return await review_pages([{"page": 1, "text": req.text}], x_clausex_ai_consent, lang)
 
 @app.post("/api/analyze-file")
-async def analyze_file(file: UploadFile = File(...)):
+async def analyze_file(file: UploadFile = File(...), lang: Literal["en", "ar"] = "en",
+                       x_clausex_ai_consent: str = Header(default="")):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(415, "Only text-based PDF files are supported in Sprint 1.")
     data = await file.read(MAX_BYTES + 1)
@@ -84,4 +91,4 @@ async def analyze_file(file: UploadFile = File(...)):
         raise HTTPException(422, "Cannot read this PDF file.")
     if not any(p["text"].strip() for p in pages):
         raise HTTPException(422, "This PDF has no selectable text. OCR support is planned.")
-    return analyze_pages(pages)
+    return await review_pages(pages, x_clausex_ai_consent, lang)

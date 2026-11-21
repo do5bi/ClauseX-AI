@@ -46,13 +46,13 @@ def split_clauses(text: str) -> list[str]:
     return blocks if blocks else ([text.strip()] if text.strip() else [])
 
 
-def analyze_pages(pages: list[dict[str, Any]]) -> dict[str, Any]:
+def analyze_pages(pages: list[dict[str, Any]], *, full_text=False) -> dict[str, Any]:
     findings = []
     segments = []
     for page in pages:
         for clause in split_clauses(page["text"]):
             segment_id = f"c-{len(segments)+1}"
-            segment = {"id": segment_id, "page": page["page"], "text": clause[:5000]}
+            segment = {"id": segment_id, "page": page["page"], "text": clause if full_text else clause[:5000]}
             segments.append(segment)
             for kind, severity, pattern, headline in PATTERNS:
                 match = re.search(pattern, clause, flags=re.IGNORECASE)
