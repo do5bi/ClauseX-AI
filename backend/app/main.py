@@ -6,39 +6,11 @@ from pydantic import BaseModel, Field
 import pymupdf
 from .analysis import analyze_pages
 from .ai_review import get_provider, review_pages
+from .sample_agreements import DEFAULT_SAMPLE_ID, list_samples, sample_pages, display_sample_text
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PAGES = 25
-SAMPLE = """STUDENT TENANCY AGREEMENT
-
-Clause 1. Monthly rent is RM 1,000, due on the first day of each month.
-
-Clause 2. Tenant shall pay a security deposit of RM 2,000. The landlord may retain the full security deposit if the tenancy is terminated early.
-
-Clause 3. Tenant must provide 60 days written notice before early termination.
-
-Clause 4. A late fee of RM 100 may apply after seven days of non-payment.
-
-Clause 5. The landlord may enter the premises after prior written notice for necessary maintenance.
-
-Clause 6. Normal wear and tear is excluded from tenant repair costs.
-"""
-
-ARABIC_SAMPLE = """عقد إيجار سكن طلابي
-
-١. يستأجر الطالب غرفة مفروشة خلال العام الدراسي. يبلغ الإيجار الشهري ١٬٠٠٠ رينغيت ماليزي، ويُدفع في اليوم الأول من كل شهر.
-
-٢. يدفع الطالب مبلغ التأمين وقدره ٢٬٠٠٠ رينغيت. يردّ المؤجر المبلغ بعد تسلّم الغرفة، ويبيّن كتابةً أي خصم مقابل ضرر يتجاوز الاستهلاك المعتاد.
-
-٣. يجوز للطالب إنهاء العقد قبل انتهاء مدته بإرسال إشعار خطي إلى المؤجر. مدة الإشعار ستون يومًا، ويلتزم الطالب بدفع الإيجار خلالها.
-
-٤. إذا مضت سبعة أيام على موعد السداد، تُضاف رسوم التأخير وقدرها ١٠٠ رينغيت عن الدفعة المتأخرة.
-
-٥. يجوز للمؤجر دخول الغرفة لإجراء إصلاح ضروري بعد الاتفاق مع الطالب على الموعد وإخطاره كتابةً قبل الزيارة بيوم واحد على الأقل.
-
-٦. يتحمل المؤجر تكاليف الصيانة الدورية وإصلاح الأعطال الناتجة عن الاستهلاك المعتاد. وعلى الطالب الإبلاغ عن الأعطال فور ملاحظتها وتحمل تكلفة إصلاح ما يتلفه بسوء الاستخدام."""
-
-app = FastAPI(title="ClauseX Starter API", version="0.1.0")
+app = FastAPI(title="ClauseX AI API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -58,10 +30,22 @@ def health():
 def review_config():
     return {"provider": get_provider()}
 
+SampleId = Literal["shared_house", "deposit_dispute", "early_exit", "house_rules"]
+
+@app.get("/api/samples")
+def get_samples(lang: Literal["en", "ar"] = "en"):
+    return {"samples": list_samples(lang), "default_sample_id": DEFAULT_SAMPLE_ID}
+
 @app.get("/api/sample")
-def get_sample(lang: Literal["en", "ar"] = "en"):
-    text = ARABIC_SAMPLE if lang == "ar" else SAMPLE
-    return {"text": text, **analyze_pages([{"page": 1, "text": text}])}
+def get_sample(lang: Literal["en", "ar"] = "en", sample_id: SampleId = DEFAULT_SAMPLE_ID):
+    pages = sample_pages(sample_id, lang)
+    return {"sample_id": sample_id, "text": display_sample_text(pages, lang),
+            **analyze_pages(pages)}
+
+@app.post("/api/analyze-sample")
+async def analyze_sample(lang: Literal["en", "ar"] = "en", sample_id: SampleId = DEFAULT_SAMPLE_ID,
+                         x_clausex_ai_consent: str = Header(default="")):
+    return await review_pages(sample_pages(sample_id, lang), x_clausex_ai_consent, lang)
 
 @app.post("/api/analyze-text")
 async def analyze_text(req: TextRequest, lang: Literal["en", "ar"] = "en",
