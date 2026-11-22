@@ -1,3 +1,5 @@
+import DocumentTranslation from './DocumentTranslation';
+import type { TranslationCache } from './DocumentTranslation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Calculator, Check, ChevronRight, FileSearch, FileText, Globe2, Info, Languages, LockKeyhole, RefreshCw, ShieldAlert, Trash2, UploadCloud } from 'lucide-react';
 
@@ -174,6 +176,7 @@ function App(){
  const [lang,setLang]=useState<Language>('en'); const t=translations[lang];
  const [result,setResult]=useState<Result|null>(null); const [samplePages,setSamplePages]=useState<SamplePage[]>([]);
  const [file,setFile]=useState<File|null>(null); const [fileUrl,setFileUrl]=useState('');
+ const [translationCache,setTranslationCache]=useState<TranslationCache>({});
  const [busy,setBusy]=useState(false); const [error,setError]=useState<keyof typeof translations.en|null>(null); const [active,setActive]=useState<string>('');
  const [deposit,setDeposit]=useState(2000); const [rent,setRent]=useState(1000); const [months,setMonths]=useState(2);
  const [view,setView]=useState<'home'|'review'>('home');
@@ -226,6 +229,7 @@ function App(){
   setFile(null);
   setFileUrl('');
   setResult(null);
+  setTranslationCache({});
   setSamplePages([]);
   setSampleOpen(false);
   setActive('');
@@ -337,9 +341,15 @@ function App(){
     <small>{samples.find(option=>option.id===sampleId)?.description}</small>
     <small>{t.sampleNote}</small>
    </div>}
-  <div className="panel-buttons"><button className="primary small" onClick={analyze} disabled={busy||(!file&&!(samplePages.length&&(useOllama||consent)))}>{busy?t.working:useOllama?t.localRun:consent?t.aiRun:t.run}<ArrowRight size={16}/></button><button className="outline small" onClick={()=>loadSample(lang)} disabled={busy}>{t.demo}</button></div>{error&&<div role="alert" className="error"><Info size={16}/>{t[error]}</div>}<div className="privacy-tip"><Info size={17}/><span role="status">{result?.fallback_reason?t[result.fallback_reason]:localAiResult?t.ollamaMethod:aiResult?t.aiMethod:`${t.localMethod}. ${t.status}`}{result?.omitted_findings? ` ${t.omitted}` : ''}</span></div></aside><section className="document-panel" aria-busy={busy}><div className="panel-heading"><h2><FileText size={19}/>{t.original}</h2><span>{result?`${result.pages_processed} ${t.page}`:'PDF'}</span></div>{fileUrl?<iframe title={t.uploaded} src={fileUrl}/>:samplePages.length?<div className="sample-doc" lang={lang} dir={lang==='ar'?'rtl':'ltr'} tabIndex={0} aria-label={t.original}>
+  <div className="panel-buttons"><button className="primary small" onClick={analyze} disabled={busy||(!file&&!(samplePages.length&&(useOllama||consent)))}>{busy?t.working:useOllama?t.localRun:consent?t.aiRun:t.run}<ArrowRight size={16}/></button><button className="outline small" onClick={()=>loadSample(lang)} disabled={busy}>{t.demo}</button></div>{error&&<div role="alert" className="error"><Info size={16}/>{t[error]}</div>}<div className="privacy-tip"><Info size={17}/><span role="status">{result?.fallback_reason?t[result.fallback_reason]:localAiResult?t.ollamaMethod:aiResult?t.aiMethod:`${t.localMethod}. ${t.status}`}{result?.omitted_findings? ` ${t.omitted}` : ''}</span></div></aside><section className="document-panel" aria-busy={busy}><div className="panel-heading"><h2><FileText size={19}/>{t.original}</h2><span>{result?`${result.pages_processed} ${t.page}`:'PDF'}</span></div>{fileUrl || samplePages.length ? <DocumentTranslation
+   key={fileUrl || `${sampleId}:${lang}`}
+   api={API} lang={lang} file={file} sampleId={sampleId} findingId={chosen?.id}
+   cache={translationCache} setCache={setTranslationCache}
+   findingClauses={chosen?.evidence?.map(source=>source.clause_id) || (chosen ? [chosen.clause_id] : [])}
+   original={fileUrl?<iframe title={t.uploaded} src={fileUrl}/>:samplePages.length?<div className="sample-doc" lang={lang} dir={lang==='ar'?'rtl':'ltr'} tabIndex={0} aria-label={t.original}>
    {samplePages.map(item=><article key={item.page}><h3>{t.page} {item.page}</h3><p>{item.text}</p></article>)}
-  </div>:<div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}</section><aside className="insights-panel"><div className="panel-heading"><h2><ShieldAlert size={19}/>{t.findings}</h2><span className="count">{result?.findings.length||0}</span></div>{result?<>{result.findings.length? <div className="finding-list">{result.findings.map(f=><button key={f.id} className={'finding '+(f.id===chosen?.id?'selected':'')} onClick={()=>setActive(f.id)}><span className={'finding-tag '+f.level}>{f.level==='high'?'!':'•'}</span><div><b>{categoryTitles[f.category]?.[lang]||f.category}</b><small>{t.page} {f.page} · {f.matched_phrase}</small></div><ChevronRight size={16}/></button>)}</div>:<div className="empty-finding">{aiResult?t.aiEmpty:t.none}</div>}{chosen&&<div className="evidence"><span className="evidence-heading"><Check size={15}/>{t.source}</span>{aiResult && chosen.evidence ? <>
+  </div>:<div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}
+  /> : <div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}</section><aside className="insights-panel"><div className="panel-heading"><h2><ShieldAlert size={19}/>{t.findings}</h2><span className="count">{result?.findings.length||0}</span></div>{result?<>{result.findings.length? <div className="finding-list">{result.findings.map(f=><button key={f.id} className={'finding '+(f.id===chosen?.id?'selected':'')} onClick={()=>setActive(f.id)}><span className={'finding-tag '+f.level}>{f.level==='high'?'!':'•'}</span><div><b>{categoryTitles[f.category]?.[lang]||f.category}</b><small>{t.page} {f.page} · {f.matched_phrase}</small></div><ChevronRight size={16}/></button>)}</div>:<div className="empty-finding">{aiResult?t.aiEmpty:t.none}</div>}{chosen&&<div className="evidence"><span className="evidence-heading"><Check size={15}/>{t.source}</span>{aiResult && chosen.evidence ? <>
    {chosen.evidence.map((source,i)=><div key={i}><blockquote dir="auto">{source.quote}</blockquote><small>{t.page} {source.page} · {source.clause_id}</small></div>)}
    <p>{chosen.risk&&<strong>{t[chosen.risk]} · </strong>}{chosen.explanations?.[lang]}</p><b>{t.question}</b><p>{chosen.question?.[lang]}</p>
   </> : <><blockquote dir="auto">{highlightPhrase(chosenClause?.text.includes(chosen.matched_phrase) ? chosenClause.text : chosen.quote, chosen.matched_phrase)}</blockquote><small>{t.page} {chosen.page}</small></>}</div>}</>:<div className="empty-finding">{t.empty}</div>}</aside></div><section className="finance"><div className="finance-title"><Calculator size={21}/><h2>{t.financial}</h2></div><div className="finance-grid"><label>{t.deposit}<input type="number" min="0" value={deposit} onChange={e=>setDeposit(Math.max(0,Number(e.target.value)))}/></label><label>{t.rent}<input type="number" min="0" value={rent} onChange={e=>setRent(Math.max(0,Number(e.target.value)))}/></label><label>{t.months}<input type="number" min="0" max="24" value={months} onChange={e=>setMonths(Math.max(0,Number(e.target.value)))}/></label><div className="finance-result"><span>{t.exposure}</span><strong>{money(deposit+rent*months)}</strong></div></div><p>{t.note}</p></section></main>}

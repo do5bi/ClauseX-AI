@@ -138,22 +138,20 @@ def normalize_ollama_clause(text: str) -> tuple[str, list[int]]:
     return "".join(letters), offsets
 
 
-async def request_ollama_review(payload: str) -> ContractReview:
+async def request_ollama_chat(payload: str, instructions: str, schema: dict, *,
+                              model: str | None = None, max_tokens: int = 1536) -> str:
     base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip().rstrip("/")
     url = urlsplit(base_url)
     if url.scheme != "http" or url.hostname not in ("127.0.0.1", "localhost", "::1"):
         raise httpx.InvalidURL("Ollama requires a loopback HTTP endpoint")
-    options = {"temperature": 0, "num_ctx": 16384, "num_predict": 1536}
+    options = {"temperature": 0, "num_ctx": 16384, "num_predict": max_tokens}
     if gpu_layers := os.getenv("OLLAMA_NUM_GPU"):
         options["num_gpu"] = int(gpu_layers)
-    sources = {clause["id"]: clause["text"] for clause in json.loads(payload)}
-    schema = OllamaReview.model_json_schema()
-    schema["$defs"]["OllamaPoint"]["properties"]["clause_ids"]["items"]["enum"] = list(sources)
     async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=5.0), trust_env=False) as client:
         response = await client.post(f"{base_url}/api/chat", json={
-            "model": os.getenv("OLLAMA_MODEL") or "qwen3:4b",
+            "model": model or os.getenv("OLLAMA_MODEL") or "qwen3:4b",
             "messages": [
-                {"role": "system", "content": OLLAMA_INSTRUCTIONS},
+                {"role": "system", "content": instructions},
                 {"role": "user", "content": payload},
             ],
             "format": schema,
@@ -164,8 +162,16 @@ async def request_ollama_review(payload: str) -> ContractReview:
         response.raise_for_status()
     data = response.json()
     if data["done"] is not True or data.get("done_reason") != "stop":
-        raise ValueError("Incomplete review")
-    review = OllamaReview.model_validate_json(data["message"]["content"])
+        raise ValueError("Incomplete Ollama response")
+    return data["message"]["content"]
+
+
+async def request_ollama_review(payload: str) -> ContractReview:
+    sources = {clause["id"]: clause["text"] for clause in json.loads(payload)}
+    schema = OllamaReview.model_json_schema()
+    schema["$defs"]["OllamaPoint"]["properties"]["clause_ids"]["items"]["enum"] = list(sources)
+    content = await request_ollama_chat(payload, OLLAMA_INSTRUCTIONS, schema)
+    review = OllamaReview.model_validate_json(content)
     if any(key not in sources for point in review.findings for key in point.clause_ids):
         raise ValueError("Unknown source clause")
     return ContractReview(findings=[

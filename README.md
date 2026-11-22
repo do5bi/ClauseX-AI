@@ -57,3 +57,22 @@ containing Arial regular and bold, which it embeds in the PDFs.
 
 Run `cd backend && python -m pytest -q` and
 `cd frontend && npm ci && npm run build` to verify the current source.
+
+### Clause-aligned translation
+
+Open a PDF or sample in Review, choose **Translation** or **Side-by-side**, and
+select **Translate with Ollama**. The default target is the opposite of the
+detected source language. You can choose English or Arabic explicitly, including
+for mixed documents. The interface language does not set the uploaded PDF's
+translation direction.
+
+Translation uses the local `qwen3:4b` model and keeps source clause IDs and pages.
+The original PDF remains available in **Original**. Each translated clause links
+to the exact extracted text. Results are reused for the active document and
+target in the browser. A failed batch prevents the incomplete result from being
+displayed and leaves the original available for comparison and retry.
+
+Checks cover source alignment, explicit numeric values, common currency and date
+formats, numeric durations, and selected negation and condition markers.
+Treat translations as informational drafts. Verify meaning, especially written-out
+quantities and complex obligations, against the original agreement.

@@ -1,5 +1,6 @@
 from io import BytesIO
 from typing import Literal
+import httpx
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -7,6 +8,7 @@ import pymupdf
 from .analysis import analyze_pages
 from .ai_review import get_provider, review_pages
 from .sample_agreements import DEFAULT_SAMPLE_ID, list_samples, sample_pages, display_sample_text
+from .translation import SameLanguage, Target, translate_pages
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PAGES = 25
@@ -52,9 +54,7 @@ async def analyze_text(req: TextRequest, lang: Literal["en", "ar"] = "en",
                        x_clausex_ai_consent: str = Header(default="")):
     return await review_pages([{"page": 1, "text": req.text}], x_clausex_ai_consent, lang)
 
-@app.post("/api/analyze-file")
-async def analyze_file(file: UploadFile = File(...), lang: Literal["en", "ar"] = "en",
-                       x_clausex_ai_consent: str = Header(default="")):
+async def extract_pdf_pages(file: UploadFile) -> list[dict]:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(415, "Only text-based PDF files are supported in Sprint 1.")
     data = await file.read(MAX_BYTES + 1)
@@ -75,4 +75,35 @@ async def analyze_file(file: UploadFile = File(...), lang: Literal["en", "ar"] =
         raise HTTPException(422, "Cannot read this PDF file.")
     if not any(p["text"].strip() for p in pages):
         raise HTTPException(422, "This PDF has no selectable text. OCR support is planned.")
+    return pages
+
+
+@app.post("/api/analyze-file")
+async def analyze_file(file: UploadFile = File(...), lang: Literal["en", "ar"] = "en",
+                       x_clausex_ai_consent: str = Header(default="")):
+    pages = await extract_pdf_pages(file)
     return await review_pages(pages, x_clausex_ai_consent, lang)
+
+
+async def translate_document(pages: list[dict], target: Target):
+    try:
+        return await translate_pages(pages, target)
+    except SameLanguage:
+        raise HTTPException(422, "translation_same_language") from None
+    except httpx.TimeoutException:
+        raise HTTPException(504, "translation_timeout") from None
+    except (httpx.HTTPError, httpx.InvalidURL):
+        raise HTTPException(503, "translation_unavailable") from None
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise HTTPException(422, "translation_unverified") from None
+
+
+@app.post("/api/translate-file")
+async def translate_file(file: UploadFile = File(...), target: Target = "auto"):
+    return await translate_document(await extract_pdf_pages(file), target)
+
+
+@app.post("/api/translate-sample")
+async def translate_sample(lang: Literal["en", "ar"] = "en", sample_id: SampleId = DEFAULT_SAMPLE_ID,
+                           target: Target = "auto"):
+    return await translate_document(sample_pages(sample_id, lang), target)
