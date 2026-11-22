@@ -22,3 +22,30 @@ allows one request to send extracted text, clause IDs, and pages to OpenAI with
 The backend verifies quotes against the extracted clauses. When the provider
 fails, the result cannot be verified, or the agreement exceeds the model input
 limit, the workspace identifies the keyword fallback. The calculator runs in the browser.
+
+### Realistic bilingual sample agreements
+
+The Review workspace now includes a scenario selector with four fictional, multi-page
+student lease agreements in **English and Arabic**:
+
+1. Shared student house — balanced refundable-deposit and utility terms.
+2. Deposit and deductions — ambiguous deductions, fees, and delayed refunds.
+3. Early exit — potentially conflicting notice periods and renewal wording.
+4. House rules — possible conflicts around entry, repairs, and shared bills.
+
+Use **Try sample agreement** after choosing a scenario. Switching the interface language
+while a sample is open loads that scenario's matching-language document; it does **not**
+translate PDFs uploaded by users. Uploaded contracts stay in their source language.
+
+The source text and two-page structure live in `backend/app/sample_agreements.json`.
+`GET /api/samples?lang=ar` lists scenarios; `GET /api/sample?lang=ar&sample_id=early_exit`
+loads a source-linked preview, and `POST /api/analyze-sample?lang=ar&sample_id=early_exit`
+performs model review with the same local/remote consent header as file uploads.
+
+The scenario corpus is for demonstrations, regression tests, and in-context prompt
+calibration. It does **not** train or fine-tune Ollama. The contracts are fictional
+examples, **not legal templates**. AI explanations must be checked against the source
+text; correct quotations do not guarantee legally correct interpretation.
+
+Run `cd backend && python -m pytest -q` and
+`cd frontend && npm ci && npm run build` to verify the current source.
