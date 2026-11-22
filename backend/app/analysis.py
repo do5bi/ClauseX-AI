@@ -60,7 +60,7 @@ def analyze_pages(pages: list[dict[str, Any]], *, full_text=False) -> dict[str, 
                     continue
                 # Mention of a routine refundable deposit is not, by itself, high risk.
                 context_risk = bool(re.search(
-                    r"\\b(?:forfeit(?:ed|ure)?|retain\\s+(?:the\\s+)?(?:full|entire)|non[- ]refundable)\\b",
+                    r"\b(?:forfeit(?:ed|ure)?|retain\s+(?:the\s+)?(?:full|entire)|non[- ]refundable)\b",
                     clause, flags=re.IGNORECASE
                 ))
                 level = ("high" if context_risk else "review") if kind == "deposit" else severity
