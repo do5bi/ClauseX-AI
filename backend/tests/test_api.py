@@ -119,3 +119,19 @@ def test_sample_keyword_review_preserves_page_numbers():
     assert reviewed['analysis_method'] == 'local_keyword_rules_prototype'
     assert reviewed['clauses'] == original['clauses']
     assert reviewed['findings'] == original['findings']
+
+
+def test_refundable_deposit_is_review_not_high_risk():
+    from app.analysis import analyze_pages
+    result = analyze_pages([{'page': 1, 'text':
+        'Clause 1. The security deposit is refundable within 14 days with itemized deductions.'}])
+    deposit = next(f for f in result['findings'] if f['category'] == 'deposit')
+    assert deposit['level'] == 'review'
+
+
+def test_forfeitable_deposit_remains_high_risk():
+    from app.analysis import analyze_pages
+    result = analyze_pages([{'page': 1, 'text':
+        'Clause 1. The landlord may retain the full security deposit upon early termination.'}])
+    deposit = next(f for f in result['findings'] if f['category'] == 'deposit')
+    assert deposit['level'] == 'high'
