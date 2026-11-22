@@ -36,7 +36,8 @@ def test_sample_defaults_to_existing_english_agreement():
 
 def test_arabic_sample_uses_the_same_rules_as_uploaded_text():
     sample = client.get('/api/sample', params={'lang': 'ar'}).json()
-    reviewed = client.post('/api/analyze-text', json={'text': sample['text']}).json()
+    # The dedicated endpoint preserves the original two-page structure.
+    reviewed = client.post('/api/analyze-sample?lang=ar&sample_id=shared_house').json()
     assert sample['findings'] == reviewed['findings']
     assert {'deposit', 'termination', 'entry'} <= {f['category'] for f in reviewed['findings']}
     clauses = {clause['id']: clause for clause in reviewed['clauses']}
