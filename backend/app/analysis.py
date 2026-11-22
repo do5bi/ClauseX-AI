@@ -58,12 +58,18 @@ def analyze_pages(pages: list[dict[str, Any]], *, full_text=False) -> dict[str, 
                 match = re.search(pattern, clause, flags=re.IGNORECASE)
                 if not match:
                     continue
+                # Mention of a routine refundable deposit is not, by itself, high risk.
+                context_risk = bool(re.search(
+                    r"\\b(?:forfeit(?:ed|ure)?|retain\\s+(?:the\\s+)?(?:full|entire)|non[- ]refundable)\\b",
+                    clause, flags=re.IGNORECASE
+                ))
+                level = ("high" if context_risk else "review") if kind == "deposit" else severity
                 findings.append({
                     "id": f"f-{len(findings)+1}",
                     "clause_id": segment_id,
                     "page": page["page"],
                     "category": kind,
-                    "level": severity,
+                    "level": level,
                     "title": headline,
                     "quote": clause[:500],
                     "matched_phrase": match.group(0),
