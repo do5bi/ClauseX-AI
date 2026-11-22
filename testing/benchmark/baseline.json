@@ -1,0 +1,285 @@
+{
+  "model": "qwen3:4b",
+  "summary": {
+    "en": {
+      "attempted": 3,
+      "scored": 3,
+      "tp": 1,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5,
+      "contradiction_accuracy": 1.0,
+      "citation_validity": 1.0,
+      "citations": 4,
+      "fallback_frequency": 0.0,
+      "mean_seconds": 32.249,
+      "statuses": {
+        "Correct": 2,
+        "Partially correct": 1
+      }
+    },
+    "ar": {
+      "attempted": 3,
+      "scored": 1,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": null,
+      "f1": 0.0,
+      "contradiction_accuracy": 1.0,
+      "citation_validity": 1.0,
+      "citations": 1,
+      "fallback_frequency": 0.6667,
+      "mean_seconds": 28.396,
+      "statuses": {
+        "Incorrect": 1,
+        "Not evaluated": 2
+      }
+    },
+    "overall": {
+      "attempted": 6,
+      "scored": 4,
+      "tp": 1,
+      "fp": 2,
+      "fn": 1,
+      "precision": 0.3333,
+      "recall": 0.5,
+      "f1": 0.4,
+      "contradiction_accuracy": 1.0,
+      "citation_validity": 1.0,
+      "citations": 5,
+      "fallback_frequency": 0.3333,
+      "mean_seconds": 30.323,
+      "statuses": {
+        "Correct": 2,
+        "Partially correct": 1,
+        "Incorrect": 1,
+        "Not evaluated": 2
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "en-01",
+      "language": "en",
+      "status": "Correct",
+      "seconds": 41.415,
+      "live": true,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "expected_contradiction": false,
+      "contradiction_match": true,
+      "valid_citations": 1,
+      "citations": 1,
+      "findings": [
+        {
+          "id": "ai-1",
+          "clause_id": "c-1",
+          "quote": "The refundable deposit of RM 840 is returned within 10 business days after key handover. Unpaid rent and damage beyond wear may be deducted only against receipts.",
+          "page": 1,
+          "category": "deposit",
+          "level": "review",
+          "risk": "routine",
+          "title": "deposit",
+          "matched_phrase": "The refundable deposit of RM 840 is returned within 10 business days after key handover. Unpaid rent and damage beyond wear may be deducted only against receipts.",
+          "explanation": "Deposit returned within 10 business days after key handover",
+          "explanations": {
+            "en": "Deposit returned within 10 business days after key handover",
+            "ar": "الضمان يُعاد في 10 أيام عمل بعد تسليم المفتاح"
+          },
+          "question": {
+            "en": "What happens if the tenant doesn't hand over the keys?",
+            "ar": "ما الذي يحدث إذا لم يُسَلِّم العميل المفتاح؟"
+          },
+          "evidence": [
+            {
+              "clause_id": "c-1",
+              "quote": "The refundable deposit of RM 840 is returned within 10 business days after key handover. Unpaid rent and damage beyond wear may be deducted only against receipts.",
+              "page": 1
+            }
+          ]
+        }
+      ],
+      "fallback": null,
+      "omitted": 0
+    },
+    {
+      "id": "en-13",
+      "language": "en",
+      "status": "Partially correct",
+      "seconds": 30.968,
+      "live": true,
+      "tp": 0,
+      "fp": 1,
+      "fn": 1,
+      "expected_contradiction": true,
+      "contradiction_match": true,
+      "valid_citations": 2,
+      "citations": 2,
+      "findings": [
+        {
+          "id": "ai-1",
+          "clause_id": "c-1",
+          "quote": "To end the room lease before 15 June, the tenant must give 21 calendar days' written notice.",
+          "page": 1,
+          "category": "contradiction",
+          "level": "review",
+          "risk": "clarify",
+          "title": "contradiction",
+          "matched_phrase": "To end the room lease before 15 June, the tenant must give 21 calendar days' written notice.",
+          "explanation": "Two clauses specify different notice periods for early lease termination before 15 June: 21 days (c-1) vs 42 days (c- 2).",
+          "explanations": {
+            "en": "Two clauses specify different notice periods for early lease termination before 15 June: 21 days (c-1) vs 42 days (c- 2).",
+            "ar": "توجد عناصر متناقضة في الجملتين: 21 يومًا (c-1) مقابل 42 يومًا (c-2) لإنهاء الإيجاء قبل 15 يونيو."
+          },
+          "question": {
+            "en": "Which notice period applies for early termination before 15 June?",
+            "ar": "ما هو المدة المطلوبة للاستقالة المبكرة قبل 15 يونيو؟"
+          },
+          "evidence": [
+            {
+              "clause_id": "c-1",
+              "quote": "To end the room lease before 15 June, the tenant must give 21 calendar days' written notice.",
+              "page": 1
+            },
+            {
+              "clause_id": "c-2",
+              "quote": "Any tenant ending the same lease before 15 June must provide 42 calendar days' written notice.",
+              "page": 1
+            }
+          ]
+        }
+      ],
+      "fallback": null,
+      "omitted": 0
+    },
+    {
+      "id": "en-19",
+      "language": "en",
+      "status": "Correct",
+      "seconds": 24.364,
+      "live": true,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "expected_contradiction": false,
+      "contradiction_match": true,
+      "valid_citations": 1,
+      "citations": 1,
+      "findings": [
+        {
+          "id": "ai-1",
+          "clause_id": "c-1",
+          "quote": "The owner can unlock the student's private room for routine checks at any hour without giving advance notice.",
+          "page": 1,
+          "category": "entry",
+          "level": "high",
+          "risk": "concern",
+          "title": "entry",
+          "matched_phrase": "The owner can unlock the student's private room for routine checks at any hour without giving advance notice.",
+          "explanation": "Landlord can enter student's private room without notice for routine checks",
+          "explanations": {
+            "en": "Landlord can enter student's private room without notice for routine checks",
+            "ar": "الإيجار يسمح للإيجار بدخول غرفة الطالب الخاصة دون إشعار مسبق للاستدلالات الروتينية"
+          },
+          "question": {
+            "en": "What constitutes a 'routine check' under this clause?",
+            "ar": "ما الذي يُعَدُّ 'التحقق الروتيني' وفقًا لهذا العقد؟"
+          },
+          "evidence": [
+            {
+              "clause_id": "c-1",
+              "quote": "The owner can unlock the student's private room for routine checks at any hour without giving advance notice.",
+              "page": 1
+            }
+          ]
+        }
+      ],
+      "fallback": null,
+      "omitted": 0
+    },
+    {
+      "id": "ar-02",
+      "language": "ar",
+      "status": "Incorrect",
+      "seconds": 23.475,
+      "live": true,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "expected_contradiction": false,
+      "contradiction_match": true,
+      "valid_citations": 1,
+      "citations": 1,
+      "findings": [
+        {
+          "id": "ai-1",
+          "clause_id": "c-1",
+          "quote": "وديعة التامين 530 رينغيت وترد بالكامل خلال أسبوع من الإخلاء إذا لم توجد متأخرات أو أضرار مثبتة. يبقى أثر الاستعمال العادي مستثنى من الخصم.",
+          "page": 1,
+          "category": "deposit",
+          "level": "high",
+          "risk": "concern",
+          "title": "deposit",
+          "matched_phrase": "وديعة التامين 530 رينغيت وترد بالكامل خلال أسبوع من الإخلاء إذا لم توجد متأخرات أو أضرار مثبتة. يبقى أثر الاستعمال العادي مستثنى من الخصم.",
+          "explanation": "إعادة وديعة التامين خلال أسبوع من الإخلاء إذا لم توجد متأخرات أو أضرار مثبتة",
+          "explanations": {
+            "en": "Deposit refund within 7 days after vacate if no delays or documented damage",
+            "ar": "إعادة وديعة التامين خلال أسبوع من الإخلاء إذا لم توجد متأخرات أو أضرار مثبتة"
+          },
+          "question": {
+            "en": "What constitutes 'documented damage' for deduction?",
+            "ar": "ما الذي يُعَد أضرارًا مثبتة للاستثناء؟"
+          },
+          "evidence": [
+            {
+              "clause_id": "c-1",
+              "quote": "وديعة التامين 530 رينغيت وترد بالكامل خلال أسبوع من الإخلاء إذا لم توجد متأخرات أو أضرار مثبتة. يبقى أثر الاستعمال العادي مستثنى من الخصم.",
+              "page": 1
+            }
+          ]
+        }
+      ],
+      "fallback": null,
+      "omitted": 0
+    },
+    {
+      "id": "ar-07",
+      "language": "ar",
+      "status": "Not evaluated",
+      "seconds": 39.758,
+      "live": false,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "expected_contradiction": false,
+      "contradiction_match": true,
+      "valid_citations": 0,
+      "citations": 0,
+      "findings": [],
+      "fallback": "unavailable",
+      "omitted": 0
+    },
+    {
+      "id": "ar-13",
+      "language": "ar",
+      "status": "Not evaluated",
+      "seconds": 21.956,
+      "live": false,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "expected_contradiction": true,
+      "contradiction_match": false,
+      "valid_citations": 0,
+      "citations": 0,
+      "findings": [],
+      "fallback": "unverified",
+      "omitted": 0
+    }
+  ]
+}

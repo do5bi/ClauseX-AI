@@ -41,10 +41,13 @@ def arabic_matches(clause: str):
 
 
 def split_clauses(text: str) -> list[str]:
-    """Split demo inputs into clauses/paragraphs without inventing any text."""
+    """Find clause boundaries without changing the source text."""
     # PDF extractors can put an RTL clause number on a line of its own.
-    boundary = r"\n\s*\n|(?=\n\s*(?:Clause\s+\d+|\d+[ \t]*(?:\n[ \t]*)?[.)]\s+))"
-    blocks = [block.strip() for block in re.split(boundary, text) if block.strip()]
+    # A delimiter distinguishes a named heading from a reference inside a clause.
+    named = r"(?:clause|section|article|البند|المادة)[^\S\n]+\d+[^\S\n]*[.):：]"
+    numbered = r"\d+[^\S\n]*(?:\n[^\S\n]*)?[.)]\s+"
+    boundary = rf"\n\s*\n|(?=\n\s*(?:{named}|{numbered}))"
+    blocks = [block.strip() for block in re.split(boundary, text, flags=re.IGNORECASE) if block.strip()]
     return blocks if blocks else ([text.strip()] if text.strip() else [])
 
 
