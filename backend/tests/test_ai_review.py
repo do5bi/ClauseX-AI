@@ -110,6 +110,17 @@ def test_ungrounded_claims_are_rejected(monkeypatch, citations):
     assert all(f["category"] != "contradiction" for f in result["findings"])
 
 
+def test_mixed_review_returns_only_verified_findings(monkeypatch):
+    invalid = {**POINT, "evidence": [{"clause_id": "c-1", "quote": "invented"}]}
+    mock_provider(monkeypatch, json.dumps({"findings": [invalid, {**POINT, "risk": "concern"}]}))
+    result = client.post("/api/analyze-text", headers=CONSENT, json={"text": TEXT}).json()
+    assert result["analysis_method"] == "openai_responses"
+    assert result["omitted_findings"] == 1
+    finding, = result["findings"]
+    assert finding["risk"] == "concern" and finding["level"] == "high"
+    assert [entry["quote"] for entry in finding["evidence"]] == ["30 days", "60 days"]
+
+
 def test_ollama_restores_source_glyphs_and_blocks_external_consent(monkeypatch):
     original_quote = "ﻣﺒﻠﻎ\u00a0ﺍﻟﺘﺄﻣﻴﻦ"
     original = f"{original_quote} عند تسلم الغرفة."
@@ -167,3 +178,26 @@ def test_ollama_sample_review_retains_second_page_citation(monkeypatch):
     assert finding['quote'] == quote
     assert finding['evidence'][0]['clause_id'] == cited['id']
     assert calls[0][len(clauses)-1]['page'] == 2
+
+
+def test_ollama_chat_constrains_ids_and_copies_original_conflicting_clauses(monkeypatch):
+    client_type = httpx.AsyncClient
+
+    def respond(request):
+        payload = json.loads(request.content)
+        ids = payload["format"]["$defs"]["OllamaPoint"]["properties"]["clause_ids"]["items"]["enum"]
+        assert ids == ["c-1", "c-2"]
+        point = {key: value for key, value in POINT.items() if key != "evidence"}
+        point.update(risk="concern", clause_ids=ids)
+        return httpx.Response(200, json={"done": True, "done_reason": "stop",
+            "message": {"content": json.dumps({"findings": [point]})}})
+
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setattr(ai_review.httpx, "AsyncClient", lambda **kwargs: client_type(
+        **kwargs, transport=httpx.MockTransport(respond)))
+    result = client.post("/api/analyze-text", json={"text": TEXT},
+                         headers={"X-ClauseX-AI-Consent": "run-local"}).json()
+    assert result["analysis_method"] == "ollama_chat"
+    finding, = result["findings"]
+    assert finding["level"] == "high"
+    assert [item["quote"] for item in finding["evidence"]] == TEXT.split("\n\n")

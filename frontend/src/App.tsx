@@ -3,12 +3,13 @@ import { ArrowRight, ArrowUpRight, Calculator, Check, ChevronRight, FileSearch, 
 
 type Provider='ollama'|'openai';
 type Language='en'|'ar';
+type SamplePage={page:number;text:string};
 type SampleOption={id:string;title:string;description:string};
 type Clause={id:string;page:number;text:string};
 type Bilingual={en:string;ar:string};
 type Evidence={clause_id:string;page:number;quote:string};
-type Finding={id:string;clause_id:string;page:number;category:string;level:'high'|'review';title:string;quote:string;matched_phrase:string;explanation:string;explanations?:Bilingual;question?:Bilingual;evidence?:Evidence[]};
-type Result={clauses:Clause[];findings:Finding[];analysis_method:string;disclaimer:string;pages_processed:number;fallback_reason?:'unavailable'|'limit'|'unverified'|'size'};
+type Finding={id:string;clause_id:string;page:number;category:string;level:'high'|'review';title:string;quote:string;matched_phrase:string;explanation:string;risk?:'routine'|'clarify'|'concern';explanations?:Bilingual;question?:Bilingual;evidence?:Evidence[]};
+type Result={clauses:Clause[];findings:Finding[];analysis_method:string;disclaimer:string;pages_processed:number;omitted_findings?:number;fallback_reason?:'unavailable'|'limit'|'unverified'|'size'};
 const API='http://localhost:8000';
 const translations={
  en:{
@@ -16,7 +17,7 @@ const translations={
   sub:'Review your student rental agreement, find clauses worth a closer look, and estimate possible costs.',
   analyze:'Review your agreement',
   demo:'Try sample agreement',
-  samplePick:'Choose a sample agreement', sampleNote:'Fictional cases with detailed terms for testing the review.',
+  samplePick:'Choose a sample agreement', sampleNote:'Fictional agreements for practice. Do not use them as legal templates.',
   upload:'Drop your lease PDF here, or browse',
   remove:'Remove file',
   consent:'I agree to send the extracted agreement text to OpenAI for this review.',
@@ -24,6 +25,8 @@ const translations={
   ollamaPrivacy:'Ollama reviews the extracted text on this computer.',
   aiRun:'Review with OpenAI', aiMethod:'AI review by OpenAI. Check each explanation against the cited text.',
   aiEmpty:'The AI review returned no points to display. Read the full agreement.',
+  omitted:'Some findings were omitted because their citations could not be verified.',
+  routine:'Routine term', clarify:'Needs clarification', concern:'Potential concern',
   question:'Ask your landlord', localMethod:'Local keyword review',
   unavailable:'AI is unavailable. Showing local keyword results.',
   limit:'The AI usage limit was reached. Showing local keyword results.',
@@ -92,6 +95,8 @@ const translations={
   ollamaPrivacy:'يراجع Ollama النص المستخرج على هذا الجهاز.',
   aiRun:'مراجعة باستخدام OpenAI', aiMethod:'مراجعة بالذكاء الاصطناعي من OpenAI. تحقّق من كل شرح بالرجوع إلى النص المقتبس.',
   aiEmpty:'لم تعرض المراجعة بالذكاء الاصطناعي ملاحظات. اقرأ العقد كاملًا.',
+  omitted:'حُذفت بعض الملاحظات لتعذّر التحقّق من اقتباساتها.',
+  routine:'بند اعتيادي', clarify:'يحتاج إلى توضيح', concern:'موضع قلق محتمل',
   question:'سؤال للمؤجر', localMethod:'مراجعة محلية بالكلمات المفتاحية',
   unavailable:'تعذّرت المراجعة بالذكاء الاصطناعي. نعرض نتائج المراجعة المحلية بالكلمات المفتاحية.',
   limit:'تم بلوغ حد استخدام الذكاء الاصطناعي. نعرض نتائج المراجعة المحلية بالكلمات المفتاحية.',
@@ -167,7 +172,7 @@ function highlightPhrase(text:string, phrase?:string) {
 
 function App(){
  const [lang,setLang]=useState<Language>('en'); const t=translations[lang];
- const [result,setResult]=useState<Result|null>(null); const [sampleText,setSampleText]=useState('');
+ const [result,setResult]=useState<Result|null>(null); const [samplePages,setSamplePages]=useState<SamplePage[]>([]);
  const [file,setFile]=useState<File|null>(null); const [fileUrl,setFileUrl]=useState('');
  const [busy,setBusy]=useState(false); const [error,setError]=useState<keyof typeof translations.en|null>(null); const [active,setActive]=useState<string>('');
  const [deposit,setDeposit]=useState(2000); const [rent,setRent]=useState(1000); const [months,setMonths]=useState(2);
@@ -202,13 +207,14 @@ function App(){
  const request=useRef<AbortController|null>(null);
  const [sampleOpen,setSampleOpen]=useState(false);
  const [sampleId,setSampleId]=useState('shared_house');
- const [samples,setSamples]=useState<SampleOption[]>([]);
+ const [catalog,setCatalog]=useState<{language:Language;options:SampleOption[]}|null>(null);
+ const samples=catalog?.language===lang?catalog.options:[];
  useEffect(()=>{
   const controller=new AbortController();
   fetch(`${API}/api/samples?lang=${lang}`,{signal:controller.signal})
    .then(response=>response.ok?response.json():null)
-   .then(data=>{if(!controller.signal.aborted) setSamples(data?.samples||[]);})
-   .catch(()=>{if(!controller.signal.aborted) setSamples([]);});
+   .then(data=>{if(!controller.signal.aborted) setCatalog({language:lang,options:data?.samples||[]});})
+   .catch(()=>{if(!controller.signal.aborted) setCatalog(null);});
   return ()=>controller.abort();
  },[lang]);
  useEffect(()=>()=>request.current?.abort(),[]);
@@ -220,7 +226,7 @@ function App(){
   setFile(null);
   setFileUrl('');
   setResult(null);
-  setSampleText('');
+  setSamplePages([]);
   setSampleOpen(false);
   setActive('');
   setError(null);
@@ -253,7 +259,7 @@ function App(){
    if(!response.ok) throw new Error();
    const data=await response.json();
    if(controller.signal.aborted) return;
-   setSampleText(data.text);
+   setSamplePages(data.pages);
    setResult(data);
    setActive(data.findings[0]?.id || '');
   } catch {
@@ -270,7 +276,7 @@ function App(){
  }
 
  async function analyze(){
-  if((!file && !sampleText) || busy) return;
+  if((!file && !samplePages.length) || busy) return;
   const controller=new AbortController();
   request.current=controller;
   setBusy(true);
@@ -280,20 +286,12 @@ function App(){
    if(useOllama) headers.set('X-ClauseX-AI-Consent','run-local');
    else if(provider==='openai'&&consent) headers.set('X-ClauseX-AI-Consent','send-to-openai');
    setConsent(false);
-   let body:FormData|string|undefined;
-   let endpoint:string;
+   let body:FormData|undefined;
+   const endpoint=file?'analyze-file':'analyze-sample';
    if(file){
     const form=new FormData();
     form.append('file',file);
     body=form;
-    endpoint='analyze-file';
-   } else if(sampleOpen){
-    // Review the selected sample from its authoritative pages, preserving citations.
-    endpoint='analyze-sample';
-   } else {
-    headers.set('Content-Type','application/json');
-    body=JSON.stringify({text:sampleText});
-    endpoint='analyze-text';
    }
    const query=`lang=${lang}`+(sampleOpen?`&sample_id=${encodeURIComponent(sampleId)}`:'');
    const response=await fetch(`${API}/api/${endpoint}?${query}`,{
@@ -326,8 +324,8 @@ function App(){
    <input type="file" accept=".pdf,application/pdf" disabled={busy} onChange={e=>selectFile(e.target.files?.[0])}/>
    <UploadCloud size={32}/><strong>{t.upload}</strong><span>{t.small}</span>
   </label>}
-  {useOllama&&(file||sampleText)&&<p className="ai-consent">{t.ollamaPrivacy}</p>}
-  {provider==='openai'&&(file||sampleText)&&<label className="ai-consent"><input type="checkbox" checked={consent} disabled={busy}
+  {useOllama&&(file||samplePages.length>0)&&<p className="ai-consent">{t.ollamaPrivacy}</p>}
+  {provider==='openai'&&(file||samplePages.length>0)&&<label className="ai-consent"><input type="checkbox" checked={consent} disabled={busy}
    onChange={e=>setConsent(e.target.checked)}/><span>{t.consent}</span></label>}
   {!file&&<div className="sample-picker">
     <label htmlFor="clausex-sample-select">{t.samplePick}</label>
@@ -336,11 +334,14 @@ function App(){
      {samples.length===0?<option value={sampleId}>{t.demo}</option>:
       samples.map(option=><option key={option.id} value={option.id}>{option.title}</option>)}
     </select>
-    <small>{samples.find(option=>option.id===sampleId)?.description||t.sampleNote}</small>
+    <small>{samples.find(option=>option.id===sampleId)?.description}</small>
+    <small>{t.sampleNote}</small>
    </div>}
-  <div className="panel-buttons"><button className="primary small" onClick={analyze} disabled={busy||(!file&&!(sampleText&&(useOllama||consent)))}>{busy?t.working:useOllama?t.localRun:consent?t.aiRun:t.run}<ArrowRight size={16}/></button><button className="outline small" onClick={()=>loadSample(lang)} disabled={busy}>{t.demo}</button></div>{error&&<div role="alert" className="error"><Info size={16}/>{t[error]}</div>}<div className="privacy-tip"><Info size={17}/><span role="status">{result?.fallback_reason?t[result.fallback_reason]:localAiResult?t.ollamaMethod:aiResult?t.aiMethod:`${t.localMethod}. ${t.status}`}</span></div></aside><section className="document-panel"><div className="panel-heading"><h2><FileText size={19}/>{t.original}</h2><span>{result?`${result.pages_processed} ${t.page}`:'PDF'}</span></div>{fileUrl?<iframe title={t.uploaded} src={fileUrl}/>:sampleText?<div className="sample-doc" lang={lang} dir={lang==='ar'?'rtl':'ltr'}>{sampleText}</div>:<div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}</section><aside className="insights-panel"><div className="panel-heading"><h2><ShieldAlert size={19}/>{t.findings}</h2><span className="count">{result?.findings.length||0}</span></div>{result?<>{result.findings.length? <div className="finding-list">{result.findings.map(f=><button key={f.id} className={'finding '+(f.id===chosen?.id?'selected':'')} onClick={()=>setActive(f.id)}><span className={'finding-tag '+f.level}>{f.level==='high'?'!':'•'}</span><div><b>{categoryTitles[f.category]?.[lang]||f.category}</b><small>{t.page} {f.page} · {f.matched_phrase}</small></div><ChevronRight size={16}/></button>)}</div>:<div className="empty-finding">{aiResult?t.aiEmpty:t.none}</div>}{chosen&&<div className="evidence"><span className="evidence-heading"><Check size={15}/>{t.source}</span>{aiResult && chosen.evidence ? <>
+  <div className="panel-buttons"><button className="primary small" onClick={analyze} disabled={busy||(!file&&!(samplePages.length&&(useOllama||consent)))}>{busy?t.working:useOllama?t.localRun:consent?t.aiRun:t.run}<ArrowRight size={16}/></button><button className="outline small" onClick={()=>loadSample(lang)} disabled={busy}>{t.demo}</button></div>{error&&<div role="alert" className="error"><Info size={16}/>{t[error]}</div>}<div className="privacy-tip"><Info size={17}/><span role="status">{result?.fallback_reason?t[result.fallback_reason]:localAiResult?t.ollamaMethod:aiResult?t.aiMethod:`${t.localMethod}. ${t.status}`}{result?.omitted_findings? ` ${t.omitted}` : ''}</span></div></aside><section className="document-panel" aria-busy={busy}><div className="panel-heading"><h2><FileText size={19}/>{t.original}</h2><span>{result?`${result.pages_processed} ${t.page}`:'PDF'}</span></div>{fileUrl?<iframe title={t.uploaded} src={fileUrl}/>:samplePages.length?<div className="sample-doc" lang={lang} dir={lang==='ar'?'rtl':'ltr'} tabIndex={0} aria-label={t.original}>
+   {samplePages.map(item=><article key={item.page}><h3>{t.page} {item.page}</h3><p>{item.text}</p></article>)}
+  </div>:<div className="empty-doc"><FileText size={35}/><p>{t.empty}</p></div>}</section><aside className="insights-panel"><div className="panel-heading"><h2><ShieldAlert size={19}/>{t.findings}</h2><span className="count">{result?.findings.length||0}</span></div>{result?<>{result.findings.length? <div className="finding-list">{result.findings.map(f=><button key={f.id} className={'finding '+(f.id===chosen?.id?'selected':'')} onClick={()=>setActive(f.id)}><span className={'finding-tag '+f.level}>{f.level==='high'?'!':'•'}</span><div><b>{categoryTitles[f.category]?.[lang]||f.category}</b><small>{t.page} {f.page} · {f.matched_phrase}</small></div><ChevronRight size={16}/></button>)}</div>:<div className="empty-finding">{aiResult?t.aiEmpty:t.none}</div>}{chosen&&<div className="evidence"><span className="evidence-heading"><Check size={15}/>{t.source}</span>{aiResult && chosen.evidence ? <>
    {chosen.evidence.map((source,i)=><div key={i}><blockquote dir="auto">{source.quote}</blockquote><small>{t.page} {source.page} · {source.clause_id}</small></div>)}
-   <p>{chosen.explanations?.[lang]}</p><b>{t.question}</b><p>{chosen.question?.[lang]}</p>
+   <p>{chosen.risk&&<strong>{t[chosen.risk]} · </strong>}{chosen.explanations?.[lang]}</p><b>{t.question}</b><p>{chosen.question?.[lang]}</p>
   </> : <><blockquote dir="auto">{highlightPhrase(chosenClause?.text.includes(chosen.matched_phrase) ? chosenClause.text : chosen.quote, chosen.matched_phrase)}</blockquote><small>{t.page} {chosen.page}</small></>}</div>}</>:<div className="empty-finding">{t.empty}</div>}</aside></div><section className="finance"><div className="finance-title"><Calculator size={21}/><h2>{t.financial}</h2></div><div className="finance-grid"><label>{t.deposit}<input type="number" min="0" value={deposit} onChange={e=>setDeposit(Math.max(0,Number(e.target.value)))}/></label><label>{t.rent}<input type="number" min="0" value={rent} onChange={e=>setRent(Math.max(0,Number(e.target.value)))}/></label><label>{t.months}<input type="number" min="0" max="24" value={months} onChange={e=>setMonths(Math.max(0,Number(e.target.value)))}/></label><div className="finance-result"><span>{t.exposure}</span><strong>{money(deposit+rent*months)}</strong></div></div><p>{t.note}</p></section></main>}
   <footer><div className="footer-logo">Clause<span>X</span> AI</div><span>{t.legal}</span><span dir="ltr">{t.copyright}</span></footer>
  </div>

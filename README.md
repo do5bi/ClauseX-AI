@@ -19,7 +19,9 @@ optionally `OPENAI_MODEL` in the Git-ignored backend `.env`. The consent checkbo
 allows one request to send extracted text, clause IDs, and pages to OpenAI with
 `store=False`.
 
-The backend verifies quotes against the extracted clauses. When the provider
+Ollama selects clause IDs from a constrained list. The backend copies evidence from
+the matching source clauses and derives the page numbers. It checks quotes supplied
+by OpenAI against the same source. When the provider
 fails, the result cannot be verified, or the agreement exceeds the model input
 limit, the workspace identifies the keyword fallback. The calculator runs in the browser.
 
@@ -46,6 +48,12 @@ The scenario corpus is for demonstrations, regression tests, and in-context prom
 calibration. It does **not** train or fine-tune Ollama. The contracts are fictional
 examples, **not legal templates**. AI explanations must be checked against the source
 text; correct quotations do not guarantee legally correct interpretation.
+
+The six selectable-text fixtures in `testing/contracts` cover the shared house,
+early exit, and house rules in both languages. Each has two pages. To regenerate
+them from the catalog, run `python testing/contracts/generate.py C:/Windows/Fonts`
+with the backend dependencies installed. The generator accepts a font directory
+containing Arial regular and bold, which it embeds in the PDFs.
 
 Run `cd backend && python -m pytest -q` and
 `cd frontend && npm ci && npm run build` to verify the current source.

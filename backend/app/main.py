@@ -39,7 +39,7 @@ def get_samples(lang: Literal["en", "ar"] = "en"):
 @app.get("/api/sample")
 def get_sample(lang: Literal["en", "ar"] = "en", sample_id: SampleId = DEFAULT_SAMPLE_ID):
     pages = sample_pages(sample_id, lang)
-    return {"sample_id": sample_id, "text": display_sample_text(pages, lang),
+    return {"sample_id": sample_id, "text": display_sample_text(pages, lang), "pages": pages,
             **analyze_pages(pages)}
 
 @app.post("/api/analyze-sample")

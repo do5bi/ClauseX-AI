@@ -42,7 +42,9 @@ def arabic_matches(clause: str):
 
 def split_clauses(text: str) -> list[str]:
     """Split demo inputs into clauses/paragraphs without inventing any text."""
-    blocks = [b.strip() for b in re.split(r"\n\s*\n|(?=\n\s*(?:Clause\s+\d+|\d+[.)]\s+))", text) if b.strip()]
+    # PDF extractors can put an RTL clause number on a line of its own.
+    boundary = r"\n\s*\n|(?=\n\s*(?:Clause\s+\d+|\d+[ \t]*(?:\n[ \t]*)?[.)]\s+))"
+    blocks = [block.strip() for block in re.split(boundary, text) if block.strip()]
     return blocks if blocks else ([text.strip()] if text.strip() else [])
 
 

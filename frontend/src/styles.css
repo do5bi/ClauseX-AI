@@ -13,3 +13,9 @@
 .sample-picker select:focus-visible{outline:2px solid #6157de;outline-offset:2px}
 .sample-picker small{font-size:10px;color:#717f97;line-height:1.65;overflow-wrap:anywhere}
 [dir=rtl] .sample-picker select{font-family:'Noto Sans Arabic',sans-serif}
+.sample-doc{max-height:570px;overflow:auto;overscroll-behavior:contain;white-space:normal}
+.sample-doc article+article{margin-block-start:24px;padding-block-start:16px;border-block-start:1px solid #e5eaf1}
+.sample-doc h3{font-size:12px;font-weight:700;line-height:1.6;color:#514cc8;margin:0 0 12px}
+.sample-doc p{white-space:pre-wrap;margin:0;overflow-wrap:anywhere}
+.sample-doc[lang=ar]{line-height:2}
+@media(max-width:760px){.sample-doc{max-height:480px}}
